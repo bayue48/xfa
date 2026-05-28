@@ -3,6 +3,7 @@ FROM node:20-alpine AS runner
 
 # Set environment
 ENV NODE_ENV=production
+ENV PORT=3001
 WORKDIR /app
 
 # Copy dependency lists
