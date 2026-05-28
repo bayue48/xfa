@@ -90,15 +90,73 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     if (type === 'video' || html.includes('fbcdn.net')) {
       const regex = /https?:(?:\\\/\\\/|)[^\s"']+?video[^\s"']+?fbcdn\.net[^\s"']+/gi;
       const matches = html.match(regex) || [];
-      const unique = [...new Set(matches)].map(m => m.replace(/\\/g, ''));
-      const foundVideo = unique.find(u => u.includes('/v/') || u.includes('/m366/') || u.includes('/m412/') || u.includes('.mp4') || u.includes('video.f'));
-      if (foundVideo) {
+      
+      // Clean and normalize URLs
+      const unique = [...new Set(matches)].map(m => {
+        let clean = m;
         // Truncate at XML/HTML tags (like \u003c / u003c / <)
-        let cleanUrl = foundVideo.split(/\\u003c|u003c|\\u003C|u003C|<|\\u003e|u003e|\\u003E|u003E|>/)[0];
-        // Replace & with & for standard clean URLs
-        cleanUrl = cleanUrl.replace(/&amp;/g, '&');
-        videoUrl = cleanUrl;
-        console.log(`[SCRAPER] Extracted direct video URL from browser response: ${videoUrl.substring(0, 80)}...`);
+        clean = clean.split(/\\u003c|u003c|\\u003C|u003C|<|\\u003e|u003e|\\u003E|u003E|>/)[0];
+        // Normalize characters
+        clean = clean.replace(/\\u0025/g, '%')
+                     .replace(/\\u0026/g, '&')
+                     .replace(/\\u003d/g, '=')
+                     .replace(/\\\//g, '/')
+                     .replace(/\\/g, '');
+        return clean;
+      });
+
+      // Try to find progressive streams containing both audio and video
+      const candidates = [];
+      for (const u of unique) {
+        const efgMatch = u.match(/[?&]efg=([^&"'#]+)/);
+        if (efgMatch) {
+          try {
+            const base64 = decodeURIComponent(efgMatch[1]);
+            const json = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+            candidates.push({ url: u, efg: json });
+          } catch (e) {
+            candidates.push({ url: u, efg: null });
+          }
+        } else {
+          candidates.push({ url: u, efg: null });
+        }
+      }
+
+      // Filter for progressive streams (contain "progressive" in vencode_tag, not "audio")
+      const progressive = candidates.filter(c => {
+        if (!c.efg || !c.efg.vencode_tag) return false;
+        const tag = c.efg.vencode_tag.toLowerCase();
+        return tag.includes('progressive') && !tag.includes('audio');
+      });
+
+      if (progressive.length > 0) {
+        // Sort: prefer HD progressive over SD progressive
+        const bestProgressive = progressive.sort((a, b) => {
+          const tagA = a.efg.vencode_tag.toLowerCase();
+          const tagB = b.efg.vencode_tag.toLowerCase();
+          const getRes = tag => {
+            const match = tag.match(/(\d+)p/);
+            if (match) return parseInt(match[1], 10);
+            if (tag.includes('720')) return 720;
+            if (tag.includes('1080')) return 1080;
+            if (tag.includes('360')) return 360;
+            if (tag.includes('480')) return 480;
+            if (tag.includes('_sd')) return 360;
+            if (tag.includes('_hd')) return 720;
+            return 0;
+          };
+          return getRes(tagB) - getRes(tagA);
+        })[0];
+
+        videoUrl = bestProgressive.url;
+        console.log(`[SCRAPER] Selected progressive video stream (with audio): ${videoUrl.substring(0, 80)}...`);
+      } else {
+        // Fallback to original matching logic if no progressive stream is found
+        const foundVideo = unique.find(u => u.includes('/v/') || u.includes('/m366/') || u.includes('/m412/') || u.includes('.mp4') || u.includes('video.f'));
+        if (foundVideo) {
+          videoUrl = foundVideo;
+          console.log(`[SCRAPER] Fallback direct video URL selected: ${videoUrl.substring(0, 80)}...`);
+        }
       }
     }
 
