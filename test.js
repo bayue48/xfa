@@ -51,6 +51,10 @@ async function testScraper() {
     {
       name: "Photo from Server Log",
       url: "https://www.facebook.com/photo/?fbid=1522913582619102&set=a.221185916125215",
+    },
+    {
+      name: "Failing Photo URL from Screenshot 1",
+      url: "https://www.facebook.com/photo/?fbid=1286028850346136&set=gm.1298622039097247"
     }
   ];
 

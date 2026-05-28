@@ -74,6 +74,7 @@ function cleanFinalMetadata(meta, type) {
   let author = meta.author || 'Facebook User';
   let image = meta.image || '';
   let videoUrl = meta.videoUrl || '';
+  let authorPic = meta.authorPic || '';
 
   // Clean Author
   if (!author || isGenericTitle(author)) {
@@ -137,7 +138,7 @@ function cleanFinalMetadata(meta, type) {
     image,
     videoUrl,
     author,
-    authorPic: ''
+    authorPic
   };
 }
 
@@ -334,7 +335,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         image: resolvedImage,
         videoUrl: videoUrl,
         author: author,
-        authorPic: ''
+        authorPic: jsonMeta.authorPic || meta.authorPic || ''
       }, type);
 
       if (isMetadataGeneric(finalMeta)) {
@@ -417,7 +418,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         image: resolvedImage,
         videoUrl: videoUrl,
         author: author,
-        authorPic: ''
+        authorPic: jsonMeta.authorPic || meta.authorPic || ''
       }, type);
 
       if (isMetadataGeneric(finalMeta)) {
@@ -528,10 +529,11 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     }
 
     // Extract image
-    let foundImage = '';
-    $('img').each((i, el) => {
-      const src = $(el).attr('src');
-      if (!src) return;
+    const isProfileImage = (imgEl) => {
+      const src = imgEl.attr('src') || '';
+      const alt = imgEl.attr('alt') || '';
+      const ariaLabel = imgEl.attr('aria-label') || '';
+      const className = imgEl.attr('class') || '';
       
       if (
         src.includes('/rsrc.php/') || 
@@ -539,22 +541,76 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         src.includes('profile.php') ||
         src.includes('emoji.php') ||
         src.includes('/images/emoji') ||
-        src.includes('/assets/')
+        src.includes('/assets/') ||
+        src.includes('favicon')
       ) {
-        return;
+        return true;
       }
       
-      if (src.includes('fbcdn') && !foundImage) {
-        foundImage = src;
+      if (
+        alt.toLowerCase().includes('profile') || 
+        alt.toLowerCase().includes('avatar') ||
+        ariaLabel.toLowerCase().includes('profile') ||
+        ariaLabel.toLowerCase().includes('avatar')
+      ) {
+        return true;
       }
-    });
+      
+      if (
+        className.includes('_s0') || 
+        className.includes('_4ooo') || 
+        className.includes('_5xib') || 
+        className.includes('_tzw')
+      ) {
+        return true;
+      }
+      
+      const parentAnchor = imgEl.closest('a');
+      if (parentAnchor.length) {
+        const tabIndex = parentAnchor.attr('tabindex');
+        const ariaHidden = parentAnchor.attr('aria-hidden');
+        const anchorClass = parentAnchor.attr('class') || '';
+        
+        if (tabIndex === '-1' || ariaHidden === 'true' || anchorClass.includes('_3rt8')) {
+          return true;
+        }
+      }
+      
+      return false;
+    };
 
+    let foundImage = '';
+    
+    // First, look for explicitly marked main post images in the iframe
+    const mainImageSelectors = [
+      '._2l7q img',
+      'img.scaledImageFitWidth',
+      'img.scaledImageFitHeight',
+      'img._1p6f',
+      'img._1p6g'
+    ];
+    
+    for (const selector of mainImageSelectors) {
+      const img = $(selector).first();
+      if (img.length) {
+        const src = img.attr('src');
+        if (src && !isProfileImage(img)) {
+          foundImage = src;
+          break;
+        }
+      }
+    }
+    
+    // If not found by selector, loop through all images and find the first non-profile image
     if (!foundImage) {
       $('img').each((i, el) => {
-        const src = $(el).attr('src');
-        if (src && !src.includes('/rsrc.php/') && !src.includes('profile')) {
-          foundImage = src;
-          return false;
+        const img = $(el);
+        const src = img.attr('src');
+        if (src && !isProfileImage(img)) {
+          if (src.includes('fbcdn') || src.includes('fbsbx') || src.startsWith('http')) {
+            foundImage = src;
+            return false; // break
+          }
         }
       });
     }
