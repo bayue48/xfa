@@ -456,6 +456,9 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const html = response.data;
     const $ = cheerio.load(html);
 
+    // Remove script and style tags to prevent raw Javascript/CSS code from being extracted as description text
+    $('script, style').remove();
+
     const metadata = {
       title: 'Facebook Post',
       description: '',

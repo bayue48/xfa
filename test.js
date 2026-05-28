@@ -17,6 +17,7 @@ async function testUrlParser() {
     "https://fb.watch/yG4QOQkYl6/",
     "https://www.facebook.com/photo/?fbid=122129143449186921&set=gm.4003615883105784&idorvanity=3791219181012123",
     "https://www.facebook.com/groups/3791219181012123/?multi_permalinks=4003615883105784&hoisted_section_header_type=recently_seen&__cft__[0]=AZZkU-FBbAbpcKLVCyao8_D63t4S38wqxx16-0DJoqSjgrPwIspRMqXaf0qGHsMJAoxfVkMwcJgAoKFlTXoPpg_0ydVCri6OXYZEVBMJHbmvaq4edSAF3mLlpHGA5BFKzj6L5FMZTquQ2iHp11mOUB-t8OvycUfrDievMFA86HwHI08ZHQvop-t5Epcflu9QukNfhGU_VUvw87xPQhEk8hSn&__tn__=%2CO%2CP-R",
+    "https://xfa.gsdm.site/permalink.php?story_fbid=pfbid0czTC6S6Wke1XTbHgkKgpaf7iwYrH7843KtbFQNZf5g2DwDT5Nrhcg71ETZSYXwCCl&id=61554055899100"
   ];
 
   for (const url of testUrls) {
