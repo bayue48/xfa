@@ -1,27 +1,29 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-const BOT_USER_AGENT = 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)';
-const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const BOT_USER_AGENT =
+  "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)";
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 function extractAuthor(title) {
-  if (!title) return 'Facebook User';
-  
+  if (!title) return "Facebook User";
+
   let cleaned = title.trim();
 
   // Pattern: "Reel by Author"
-  if (cleaned.includes('Reel by ')) {
+  if (cleaned.includes("Reel by ")) {
     const match = cleaned.match(/Reel by\s+([^|]+)/i);
     if (match) return match[1].trim();
   }
 
   // Split by "|"
-  if (cleaned.includes('|')) {
-    const parts = cleaned.split('|').map(p => p.trim());
-    const filtered = parts.filter(p => p.toLowerCase() !== 'facebook');
+  if (cleaned.includes("|")) {
+    const parts = cleaned.split("|").map((p) => p.trim());
+    const filtered = parts.filter((p) => p.toLowerCase() !== "facebook");
     if (filtered.length > 0) {
       const last = filtered[filtered.length - 1];
-      if (last && !last.includes('views') && !last.includes('reactions')) {
+      if (last && !last.includes("views") && !last.includes("reactions")) {
         return last;
       }
       return filtered[0];
@@ -29,9 +31,9 @@ function extractAuthor(title) {
   }
 
   // Split by " - " (dash)
-  if (cleaned.includes(' - ')) {
-    const parts = cleaned.split(' - ').map(p => p.trim());
-    const filtered = parts.filter(p => p.toLowerCase() !== 'facebook');
+  if (cleaned.includes(" - ")) {
+    const parts = cleaned.split(" - ").map((p) => p.trim());
+    const filtered = parts.filter((p) => p.toLowerCase() !== "facebook");
     if (filtered.length > 0) {
       if (filtered[0].length < 30) {
         return filtered[0];
@@ -46,40 +48,40 @@ function extractAuthor(title) {
 function isGenericTitle(t) {
   if (!t) return true;
   const lower = t.toLowerCase().trim();
-  
+
   const genericSubstrings = [
-    'log into facebook',
-    'log in to facebook',
-    'login to facebook',
-    'log in or sign up',
-    'login or sign up',
-    'create an account',
-    'welcome to facebook',
-    'security check',
-    'security check required',
-    'page not found',
-    'content not found',
-    'popular videos'
+    "log into facebook",
+    "log in to facebook",
+    "login to facebook",
+    "log in or sign up",
+    "login or sign up",
+    "create an account",
+    "welcome to facebook",
+    "security check",
+    "security check required",
+    "page not found",
+    "content not found",
+    "popular videos",
   ];
 
-  if (genericSubstrings.some(p => lower.includes(p))) {
+  if (genericSubstrings.some((p) => lower.includes(p))) {
     return true;
   }
 
   const genericExacts = [
-    'facebook',
-    'facebook post',
-    'facebook video',
-    'facebook image',
-    'facebook picture',
-    'facebook link',
-    'facebook user',
-    'facebook | error',
-    'error | facebook',
-    'error facebook'
+    "facebook",
+    "facebook post",
+    "facebook video",
+    "facebook image",
+    "facebook picture",
+    "facebook link",
+    "facebook user",
+    "facebook | error",
+    "error | facebook",
+    "error facebook",
   ];
 
-  if (genericExacts.some(p => lower === p)) {
+  if (genericExacts.some((p) => lower === p)) {
     return true;
   }
 
@@ -90,56 +92,70 @@ function isGenericImage(url) {
   if (!url) return true;
   const lower = url.toLowerCase();
   return (
-    lower.includes('fb_icon_325x325') ||
-    lower.includes('/images/fb_icon') ||
-    lower.includes('static.xx.fbcdn.net/rsrc.php') ||
-    lower.includes('facebook_logo') ||
-    (lower.includes('fbcdn.net') && lower.includes('logo'))
+    lower.includes("fb_icon_325x325") ||
+    lower.includes("/images/fb_icon") ||
+    lower.includes("static.xx.fbcdn.net/rsrc.php") ||
+    lower.includes("facebook_logo") ||
+    (lower.includes("fbcdn.net") && lower.includes("logo"))
   );
 }
 
 function isMetadataGeneric(meta) {
   const titleGeneric = isGenericTitle(meta.title);
-  const descGeneric = !meta.description || isGenericTitle(meta.description) || meta.description === 'Click to open on Facebook';
+  const descGeneric =
+    !meta.description ||
+    isGenericTitle(meta.description) ||
+    meta.description === "Click to open on Facebook";
   const noImage = !meta.image || isGenericImage(meta.image);
   const noVideo = !meta.videoUrl;
-  const noAuthor = !meta.author || meta.author === 'Facebook User' || meta.author === 'Facebook';
-  
+  const noAuthor =
+    !meta.author ||
+    meta.author === "Facebook User" ||
+    meta.author === "Facebook";
+
   return titleGeneric && descGeneric && noImage && noVideo && noAuthor;
 }
 
 function cleanFinalMetadata(meta, type) {
-  let title = meta.title || '';
-  let description = meta.description || '';
-  let author = meta.author || 'Facebook User';
-  let image = meta.image || '';
-  let videoUrl = meta.videoUrl || '';
-  let authorPic = meta.authorPic || '';
+  let title = meta.title || "";
+  let description = meta.description || "";
+  let author = meta.author || "Facebook User";
+  let image = meta.image || "";
+  let videoUrl = meta.videoUrl || "";
+  let authorPic = meta.authorPic || "";
 
   // Clean Author
   if (!author || isGenericTitle(author)) {
-    author = 'Facebook User';
+    author = "Facebook User";
   }
-  
+
   // Clean Title
-  title = title.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-  
+  title = title.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+
   // If title has views and reactions, parse out the real title
-  if (title.includes('views') && title.includes('reactions') && title.includes('|')) {
-    const parts = title.split('|').map(p => p.trim());
+  if (
+    title.includes("views") &&
+    title.includes("reactions") &&
+    title.includes("|")
+  ) {
+    const parts = title.split("|").map((p) => p.trim());
     if (parts.length > 1 && parts[1]) {
       title = parts[1];
     }
   }
 
   // Remove trailing author suffix from title, e.g. " | Facebook" or " | AuthorName"
-  if (title.includes('|')) {
-    const parts = title.split('|').map(p => p.trim());
+  if (title.includes("|")) {
+    const parts = title.split("|").map((p) => p.trim());
     if (parts.length > 1) {
       const lastPart = parts[parts.length - 1].toLowerCase();
-      if (lastPart === 'facebook' || lastPart.includes('reels') || lastPart === author.toLowerCase()) {
+      if (
+        lastPart === "facebook" ||
+        lastPart.includes("reels") ||
+        lastPart === author.toLowerCase()
+      ) {
         parts.pop();
-        title = parts.join(' | ');
+        title = parts.join(" | ");
       }
     }
   }
@@ -149,28 +165,37 @@ function cleanFinalMetadata(meta, type) {
     if (description && !isGenericTitle(description)) {
       title = description;
     } else {
-      title = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+      title = type === "video" ? "Facebook Video" : "Facebook Post";
     }
   }
 
   // Clean Description
-  description = description.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  description = description.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   if (isGenericTitle(description)) {
-    description = '';
+    description = "";
   }
 
   // If description is empty, use title as a fallback (or some standard text)
   if (!description) {
-    description = 'Click to open on Facebook';
+    description = "Click to open on Facebook";
   }
 
   // Ensure title and description length limit
   if (title.length > 150) {
-    title = title.substring(0, 147) + '...';
+    title = title.substring(0, 147) + "...";
   }
   if (description.length > 300) {
-    description = description.substring(0, 297) + '...';
+    description = description.substring(0, 297) + "...";
   }
+
+  console.log(`[SCRAPER] Cleaned metadata for type "${type}":`, {
+    title,
+    description,
+    image,
+    videoUrl,
+    author,
+    authorPic,
+  });
 
   return {
     title,
@@ -178,22 +203,61 @@ function cleanFinalMetadata(meta, type) {
     image,
     videoUrl,
     author,
-    authorPic
+    authorPic,
   };
+}
+
+function cleanImageUrl(url) {
+  if (!url) return url;
+
+  let cleanedUrl = url.replace(/&width=\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/&height=\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/&oe=[0-9a-fA-F]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_ohc=[^&]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_cat=\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/&ccb=\d-\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_sid=[0-9a-fA-F]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_ht=[^&]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_eui2=[^&]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&oh=[0-9a-fA-F_]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_gid=[^&]+/, '');
+  cleanedUrl = cleanedUrl.replace(/&_nc_ss=\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/\?stp=dst-jpg_s\d+x\d+_tt\d&/, '?');
+
+  cleanedUrl = cleanedUrl.replace(/\?.+$/, (match) => {
+    const params = new URLSearchParams(match);
+    const filteredParams = [];
+    for (const [key, value] of params.entries()) {
+      if (!/^(s|p|q|o|h|w|c|fit|dpr|f|url)$/i.test(key) && !/^\d+x\d+$/.test(value)) {
+        filteredParams.push(`${key}=${value}`);
+      }
+    }
+    return filteredParams.length > 0 ? `?${filteredParams.join('&')}` : '';
+  });
+
+  if (cleanedUrl.endsWith('?')) {
+    cleanedUrl = cleanedUrl.slice(0, -1);
+  }
+
+  console.log(`[SCRAPER] Cleaned image URL: ${cleanedUrl}`);
+
+  return cleanedUrl;
 }
 
 function extractFromJson(html) {
   const metadata = {};
-  
+
   // 1. Author
-  const actorRegex = /"actors"\s*:\s*\[\s*\{\s*(?:[^{}]*?)"name"\s*:\s*"([^"]+)"/i;
+  const actorRegex =
+    /"actors"\s*:\s*\[\s*\{\s*(?:[^{}]*?)"name"\s*:\s*"([^"]+)"/i;
   const actorMatch = html.match(actorRegex);
   if (actorMatch) {
     metadata.author = decodeJsonUnicode(actorMatch[1]);
   }
 
   // 2. Message / Description
-  const messageRegex = /"message"\s*:\s*\{\s*(?:[^{}]*?)"text"\s*:\s*"([^"]+)"/i;
+  const messageRegex =
+    /"message"\s*:\s*\{\s*(?:[^{}]*?)"text"\s*:\s*"([^"]+)"/i;
   const messageMatch = html.match(messageRegex);
   if (messageMatch) {
     metadata.description = decodeJsonUnicode(messageMatch[1]);
@@ -212,9 +276,46 @@ function extractFromJson(html) {
   if (imageMatch) {
     metadata.image = decodeJsonUnicode(imageMatch[1]);
   }
-  
+
   return metadata;
 }
+
+// Helper function to extract Open Graph data
+function extractOpenGraphData($, meta) {
+  const ogData = {};
+  for (const key in meta) {
+    if (key.startsWith("og:")) {
+      ogData[key.substring(3)] = meta[key];
+    }
+  }
+  // Also explicitly check for og:site_name if it's not captured by the generic meta loop
+  if (!ogData.site_name) {
+    const ogSiteName = $('meta[property="og:site_name"]').attr("content");
+    if (ogSiteName) {
+      ogData.site_name = ogSiteName;
+    }
+  }
+  return ogData;
+}
+
+// Helper function to extract Twitter card data
+function extractTwitterData($, meta) {
+  const twitterData = {};
+  for (const key in meta) {
+    if (key.startsWith("twitter:")) {
+      twitterData[key.substring(8)] = meta[key];
+    }
+  }
+  // Also explicitly check for twitter:site if it's not captured by the generic meta loop
+  if (!twitterData.site) {
+    const twitterSite = $('meta[name="twitter:site"]').attr("content");
+    if (twitterSite) {
+      twitterData.site = twitterSite;
+    }
+  }
+  return twitterData;
+}
+
 
 /**
  * Scrapes metadata from a Facebook post/video.
@@ -226,17 +327,20 @@ function extractFromJson(html) {
 async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
   // 1. Try scraping with BROWSER_USER_AGENT (Chrome) first, as it yields high-quality metadata and video stream links.
   try {
-    console.log(`[SCRAPER] Attempting browser-agent fetch from: ${canonicalUrl}`);
+    console.log(
+      `[SCRAPER] Attempting browser-agent fetch from: ${canonicalUrl}`,
+    );
     const response = await axios.get(canonicalUrl, {
       headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
+        "User-Agent": BROWSER_USER_AGENT,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
       },
       timeout: 8000,
       maxRedirects: 5,
@@ -246,35 +350,43 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const $ = cheerio.load(html);
 
     const meta = {};
-    $('meta').each((i, el) => {
-      const nameAttr = $(el).attr('name') || $(el).attr('property');
-      const content = $(el).attr('content');
+    $("meta").each((i, el) => {
+      const nameAttr = $(el).attr("name") || $(el).attr("property");
+      const content = $(el).attr("content");
       if (nameAttr && content) {
         meta[nameAttr] = content;
       }
     });
 
-    const title = meta['og:title'] || meta['twitter:title'] || $('title').text();
-    const description = meta['og:description'] || meta['twitter:description'] || meta['description'];
-    const image = meta['og:image'] || meta['twitter:image'];
-    
-    let videoUrl = '';
+    const title =
+      meta["og:title"] || meta["twitter:title"] || $("title").text();
+    const description =
+      meta["og:description"] ||
+      meta["twitter:description"] ||
+      meta["description"];
+    const image = meta["og:image"] || meta["twitter:image"];
+
+    let videoUrl = "";
     // If this is a video or reel, search for playable CDN links
-    if (type === 'video' || html.includes('fbcdn.net')) {
-      const regex = /https?:(?:\\\/\\\/|)[^\s"']+?video[^\s"']+?fbcdn\.net[^\s"']+/gi;
+    if (type === "video" || html.includes("fbcdn.net")) {
+      const regex =
+        /https?:(?:\\\/\\\/|)[^\s"']+?video[^\s"']+?fbcdn\.net[^\s"']+/gi;
       const matches = html.match(regex) || [];
-      
+
       // Clean and normalize URLs
-      const unique = [...new Set(matches)].map(m => {
+      const unique = [...new Set(matches)].map((m) => {
         let clean = m;
         // Truncate at XML/HTML tags (like \u003c / u003c / <)
-        clean = clean.split(/\\u003c|u003c|\\u003C|u003C|<|\\u003e|u003e|\\u003E|u003E|>/)[0];
+        clean = clean.split(
+          /\\u003c|u003c|\\u003C|u003C|<|\\u003e|u003e|\\u003E|u003E|>/,
+        )[0];
         // Normalize characters
-        clean = clean.replace(/\\u0025/g, '%')
-                     .replace(/\\u0026/g, '&')
-                     .replace(/\\u003d/g, '=')
-                     .replace(/\\\//g, '/')
-                     .replace(/\\/g, '');
+        clean = clean
+          .replace(/\\u0025/g, "%")
+          .replace(/\\u0026/g, "&")
+          .replace(/\\u003d/g, "=")
+          .replace(/\\\//g, "/")
+          .replace(/\\/g, "");
         return clean;
       });
 
@@ -285,7 +397,9 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         if (efgMatch) {
           try {
             const base64 = decodeURIComponent(efgMatch[1]);
-            const json = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+            const json = JSON.parse(
+              Buffer.from(base64, "base64").toString("utf8"),
+            );
             candidates.push({ url: u, efg: json });
           } catch (e) {
             candidates.push({ url: u, efg: null });
@@ -296,10 +410,10 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       }
 
       // Filter for progressive streams (contain "progressive" in vencode_tag, not "audio")
-      const progressive = candidates.filter(c => {
+      const progressive = candidates.filter((c) => {
         if (!c.efg || !c.efg.vencode_tag) return false;
         const tag = c.efg.vencode_tag.toLowerCase();
-        return tag.includes('progressive') && !tag.includes('audio');
+        return tag.includes("progressive") && !tag.includes("audio");
       });
 
       if (progressive.length > 0) {
@@ -307,93 +421,158 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         const bestProgressive = progressive.sort((a, b) => {
           const tagA = a.efg.vencode_tag.toLowerCase();
           const tagB = b.efg.vencode_tag.toLowerCase();
-          const getRes = tag => {
+          const getRes = (tag) => {
             const match = tag.match(/(\d+)p/);
             if (match) return parseInt(match[1], 10);
-            if (tag.includes('720')) return 720;
-            if (tag.includes('1080')) return 1080;
-            if (tag.includes('360')) return 360;
-            if (tag.includes('480')) return 480;
-            if (tag.includes('_sd')) return 360;
-            if (tag.includes('_hd')) return 720;
+            if (tag.includes("720")) return 720;
+            if (tag.includes("1080")) return 1080;
+            if (tag.includes("360")) return 360;
+            if (tag.includes("480")) return 480;
+            if (tag.includes("_sd")) return 360;
+            if (tag.includes("_hd")) return 720;
             return 0;
           };
           return getRes(tagB) - getRes(tagA);
         })[0];
 
         videoUrl = bestProgressive.url;
-        console.log(`[SCRAPER] Selected progressive video stream (with audio): ${videoUrl.substring(0, 80)}...`);
+        console.log(
+          `[SCRAPER] Selected progressive video stream (with audio): ${videoUrl.substring(0, 80)}...`,
+        );
       } else {
         // Fallback to original matching logic if no progressive stream is found
-        const foundVideo = unique.find(u => u.includes('/v/') || u.includes('/m366/') || u.includes('/m412/') || u.includes('.mp4') || u.includes('video.f'));
+        const foundVideo = unique.find(
+          (u) =>
+            u.includes("/v/") ||
+            u.includes("/m366/") ||
+            u.includes("/m412/") ||
+            u.includes(".mp4") ||
+            u.includes("video.f"),
+        );
         if (foundVideo) {
           videoUrl = foundVideo;
-          console.log(`[SCRAPER] Fallback direct video URL selected: ${videoUrl.substring(0, 80)}...`);
+          console.log(
+            `[SCRAPER] Fallback direct video URL selected: ${videoUrl.substring(0, 80)}...`,
+          );
         }
       }
     }
 
     const jsonMeta = extractFromJson(html);
+    const openGraphData = extractOpenGraphData($, meta);
+    const twitterData = extractTwitterData($, meta);
 
-    if (title || description || jsonMeta.description || jsonMeta.seoTitle || jsonMeta.author) {
-      console.log(`[SCRAPER] Browser-agent fetch successful for: ${canonicalUrl}`);
-      
+    if (
+      title ||
+      description ||
+      jsonMeta.description ||
+      jsonMeta.seoTitle ||
+      jsonMeta.author
+    ) {
+      console.log(
+        `[SCRAPER] Browser-agent fetch successful for: ${canonicalUrl}`,
+      );
+
       let author = extractAuthor(title);
-      if ((!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'facebook user') && jsonMeta.author) {
+      if (
+        (!author ||
+          author.toLowerCase() === "facebook" ||
+          author.toLowerCase() === "facebook user") &&
+        jsonMeta.author
+      ) {
         author = jsonMeta.author;
       } else if (jsonMeta.author && (!author || author.length > 40)) {
         author = jsonMeta.author;
       }
 
-      let resolvedDescription = jsonMeta.description || description || '';
-      if (!resolvedDescription || resolvedDescription.includes('Log into Facebook') || resolvedDescription.includes('Click to open on Facebook')) {
-        resolvedDescription = jsonMeta.seoTitle || '';
+      // Prioritize og:site_name or twitter:site if author is still generic or empty
+      if (
+        (!author ||
+          author.toLowerCase() === "facebook" ||
+          author.toLowerCase() === "facebook user") &&
+        openGraphData.site_name &&
+        openGraphData.site_name.toLowerCase() !== "facebook"
+      ) {
+        author = openGraphData.site_name;
+      } else if (
+        (!author ||
+          author.toLowerCase() === "facebook" ||
+          author.toLowerCase() === "facebook user") &&
+        twitterData.site &&
+        twitterData.site.toLowerCase() !== "facebook"
+      ) {
+        author = twitterData.site;
       }
 
-      let resolvedTitle = title || '';
+      let resolvedDescription = jsonMeta.description || description || "";
+      if (
+        !resolvedDescription ||
+        resolvedDescription.includes("Log into Facebook") ||
+        resolvedDescription.includes("Click to open on Facebook")
+      ) {
+        resolvedDescription = jsonMeta.seoTitle || "";
+      }
+
+      let resolvedTitle = title || "";
       if (isGenericTitle(resolvedTitle)) {
         if (jsonMeta.seoTitle) {
           resolvedTitle = jsonMeta.seoTitle;
         } else if (jsonMeta.description) {
           resolvedTitle = jsonMeta.description;
         } else if (author && !isGenericTitle(author)) {
-          resolvedTitle = type === 'video' ? `${author}'s Video` : `${author}'s Post`;
+          resolvedTitle =
+            type === "video" ? `${author}'s Video` : `${author}'s Post`;
         } else {
-          resolvedTitle = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+          resolvedTitle = type === "video" ? "Facebook Video" : "Facebook Post";
         }
       }
 
       if (resolvedTitle && resolvedTitle.length > 150) {
-        resolvedTitle = resolvedTitle.substring(0, 147) + '...';
+        resolvedTitle = resolvedTitle.substring(0, 147) + "...";
       }
 
-      const resolvedImage = jsonMeta.image || image || '';
+      let resolvedImage = cleanImageUrl(jsonMeta.image || image || "");
 
-      const finalMeta = cleanFinalMetadata({
-        title: resolvedTitle,
-        description: resolvedDescription,
-        image: resolvedImage,
-        videoUrl: videoUrl,
-        author: author,
-        authorPic: jsonMeta.authorPic || meta.authorPic || ''
-      }, type);
+      // Attempt to extract a higher resolution image from JSON data if available
+      const imageData = extractImageData(html);
+      if (imageData && imageData.url) {
+        resolvedImage = cleanImageUrl(imageData.url);
+      }
+
+      const finalMeta = cleanFinalMetadata(
+        {
+          title: resolvedTitle,
+          description: resolvedDescription,
+          image: resolvedImage,
+          videoUrl: videoUrl,
+          author: author,
+          authorPic: jsonMeta.authorPic || meta.authorPic || "",
+        },
+        type,
+      );
 
       if (isMetadataGeneric(finalMeta)) {
-        throw new Error('Browser-agent retrieved only generic login wall metadata');
+        throw new Error(
+          "Browser-agent retrieved only generic login wall metadata",
+        );
       }
       return finalMeta;
     }
   } catch (error) {
-    console.warn(`[SCRAPER] Browser-agent fetch failed: ${error.message}. Trying bot-agent fetch.`);
+    console.warn(
+      `[SCRAPER] Browser-agent fetch failed: ${error.message}. Trying bot-agent fetch.`,
+    );
   }
 
   // 2. Try direct scraping with Discordbot User-Agent (Fallback 1)
   try {
-    console.log(`[SCRAPER] Attempting bot-agent direct fetch from: ${canonicalUrl}`);
+    console.log(
+      `[SCRAPER] Attempting bot-agent direct fetch from: ${canonicalUrl}`,
+    );
     const response = await axios.get(canonicalUrl, {
       headers: {
-        'User-Agent': BOT_USER_AGENT,
-        'Accept-Language': 'en-US,en;q=0.9',
+        "User-Agent": BOT_USER_AGENT,
+        "Accept-Language": "en-US,en;q=0.9",
       },
       timeout: 8000,
       maxRedirects: 5,
@@ -403,71 +582,122 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const $ = cheerio.load(html);
 
     const meta = {};
-    $('meta').each((i, el) => {
-      const nameAttr = $(el).attr('name') || $(el).attr('property');
-      const content = $(el).attr('content');
+    $("meta").each((i, el) => {
+      const nameAttr = $(el).attr("name") || $(el).attr("property");
+      const content = $(el).attr("content");
       if (nameAttr && content) {
         meta[nameAttr] = content;
       }
     });
 
-    const title = meta['og:title'] || meta['twitter:title'] || $('title').text();
-    const description = meta['og:description'] || meta['twitter:description'] || meta['description'];
-    const image = meta['og:image'] || meta['twitter:image'];
-    const videoUrl = meta['og:video'] || meta['og:video:url'] || meta['og:video:secure_url'] || '';
+    const title =
+      meta["og:title"] || meta["twitter:title"] || $("title").text();
+    const description =
+      meta["og:description"] ||
+      meta["twitter:description"] ||
+      meta["description"];
+    const image = meta["og:image"] || meta["twitter:image"];
+    const videoUrl =
+      meta["og:video"] ||
+      meta["og:video:url"] ||
+      meta["og:video:secure_url"] ||
+      "";
 
     const jsonMeta = extractFromJson(html);
 
-    if (title || description || jsonMeta.description || jsonMeta.seoTitle || jsonMeta.author) {
-      console.log(`[SCRAPER] Bot-agent direct fetch successful for: ${canonicalUrl}`);
-      
+    if (
+      title ||
+      description ||
+      jsonMeta.description ||
+      jsonMeta.seoTitle ||
+      jsonMeta.author
+    ) {
+      console.log(
+        `[SCRAPER] Bot-agent direct fetch successful for: ${canonicalUrl}`,
+      );
+
       let author = extractAuthor(title);
-      if ((!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'facebook user') && jsonMeta.author) {
+      if (
+        (!author ||
+          author.toLowerCase() === "facebook" ||
+          author.toLowerCase() === "facebook user") &&
+        jsonMeta.author
+      ) {
         author = jsonMeta.author;
       } else if (jsonMeta.author && (!author || author.length > 40)) {
         author = jsonMeta.author;
       }
 
-      let resolvedDescription = jsonMeta.description || description || '';
-      if (!resolvedDescription || resolvedDescription.includes('Log into Facebook') || resolvedDescription.includes('Click to open on Facebook')) {
-        resolvedDescription = jsonMeta.seoTitle || '';
+      let resolvedDescription = jsonMeta.description || description || "";
+      if (
+        !resolvedDescription ||
+        resolvedDescription.includes("Log into Facebook") ||
+        resolvedDescription.includes("Click to open on Facebook")
+      ) {
+        resolvedDescription = jsonMeta.seoTitle || "";
       }
 
-      let resolvedTitle = title || '';
+      let resolvedTitle = title || "";
       if (isGenericTitle(resolvedTitle)) {
         if (jsonMeta.seoTitle) {
           resolvedTitle = jsonMeta.seoTitle;
         } else if (jsonMeta.description) {
           resolvedTitle = jsonMeta.description;
         } else if (author && !isGenericTitle(author)) {
-          resolvedTitle = type === 'video' ? `${author}'s Video` : `${author}'s Post`;
+          resolvedTitle =
+            type === "video" ? `${author}'s Video` : `${author}'s Post`;
         } else {
-          resolvedTitle = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+          resolvedTitle = type === "video" ? "Facebook Video" : "Facebook Post";
         }
       }
 
       if (resolvedTitle && resolvedTitle.length > 150) {
-        resolvedTitle = resolvedTitle.substring(0, 147) + '...';
+        resolvedTitle = resolvedTitle.substring(0, 147) + "...";
       }
 
-      const resolvedImage = jsonMeta.image || image || '';
+      const resolvedImage = cleanImageUrl(jsonMeta.image || image || "");
 
-      const finalMeta = cleanFinalMetadata({
-        title: resolvedTitle,
-        description: resolvedDescription,
-        image: resolvedImage,
-        videoUrl: videoUrl,
-        author: author,
-        authorPic: jsonMeta.authorPic || meta.authorPic || ''
-      }, type);
+      const finalMeta = cleanFinalMetadata(
+        {
+          title: resolvedTitle,
+          description: resolvedDescription,
+          image: resolvedImage,
+          videoUrl: videoUrl,
+          author: author,
+          authorPic: jsonMeta.authorPic || meta.authorPic || "",
+        },
+        type,
+      );
 
       if (isMetadataGeneric(finalMeta)) {
-        throw new Error('Bot-agent retrieved only generic login wall metadata');
+        throw new Error("Bot-agent retrieved only generic login wall metadata");
       }
       return finalMeta;
     }
   } catch (error) {
-    console.warn(`[SCRAPER] Bot-agent fetch failed: ${error.message}. Trying iframe fallback.`);
+    console.warn(
+      `[SCRAPER] Bot-agent fetch failed: ${error.message}. Trying iframe fallback.`,
+    );
+  }
+
+  // Helper function to extract image data from JSON
+  function extractImageData(jsonContent) {
+    try {
+      const data = JSON.parse(jsonContent);
+      // Look for images in the "attachment" field for posts
+      if (data.attachment && data.attachment.media && data.attachment.media.image) {
+        return data.attachment.media.image;
+      }
+      // Look for images in a more generic "image" field
+      if (data.image) {
+        return data.image;
+      }
+      // You may need to add more sophisticated logic here based on the structure of the JSON
+      // from different types of Facebook pages (e.g., photo albums, profiles, etc.)
+    } catch (e) {
+      // Not a valid JSON or expected structure not found
+    }
+    return null;
   }
 
   // 3. Fallback to Facebook Embed Iframe Plugin (Fallback 2)
@@ -478,19 +708,21 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       // Try fetching with BOT_USER_AGENT first as it bypasses the 400 Bad Request issue on many server IPs.
       response = await axios.get(embedUrl, {
         headers: {
-          'User-Agent': BOT_USER_AGENT,
-          'Accept-Language': 'en-US,en;q=0.9',
+          "User-Agent": BOT_USER_AGENT,
+          "Accept-Language": "en-US,en;q=0.9",
         },
-        timeout: 8000
+        timeout: 8000,
       });
     } catch (botErr) {
-      console.warn(`[SCRAPER] Bot-agent iframe fetch failed: ${botErr.message}. Retrying with browser-agent...`);
+      console.warn(
+        `[SCRAPER] Bot-agent iframe fetch failed: ${botErr.message}. Retrying with browser-agent...`,
+      );
       response = await axios.get(embedUrl, {
         headers: {
-          'User-Agent': BROWSER_USER_AGENT,
-          'Accept-Language': 'en-US,en;q=0.9',
+          "User-Agent": BROWSER_USER_AGENT,
+          "Accept-Language": "en-US,en;q=0.9",
         },
-        timeout: 8000
+        timeout: 8000,
       });
     }
 
@@ -498,19 +730,19 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const $ = cheerio.load(html);
 
     // Remove script and style tags to prevent raw Javascript/CSS code from being extracted as description text
-    $('script, style').remove();
+    $("script, style").remove();
 
     const metadata = {
-      title: 'Facebook Post',
-      description: '',
-      image: '',
-      videoUrl: '',
-      author: 'Facebook User',
-      authorPic: ''
+      title: "Facebook Post",
+      description: "",
+      image: "",
+      videoUrl: "",
+      author: "Facebook User",
+      authorPic: "",
     };
 
     // Extract author
-    const authorLink = $('a[href*="facebook.com/"]').first() || $('a').first();
+    const authorLink = $('a[href*="facebook.com/"]').first() || $("a").first();
     if (authorLink.length) {
       const authorText = authorLink.text().trim();
       if (authorText && authorText.length < 50) {
@@ -519,25 +751,31 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     }
 
     // Profile photo
-    $('img').each((i, el) => {
-      const src = $(el).attr('src');
-      const alt = $(el).attr('alt') || '';
-      if (src && (src.includes('profile') || src.includes('tprofile') || alt.toLowerCase().includes('profile') || alt.toLowerCase().includes('avatar'))) {
+    $("img").each((i, el) => {
+      const src = $(el).attr("src");
+      const alt = $(el).attr("alt") || "";
+      if (
+        src &&
+        (src.includes("profile") ||
+          src.includes("tprofile") ||
+          alt.toLowerCase().includes("profile") ||
+          alt.toLowerCase().includes("avatar"))
+      ) {
         metadata.authorPic = src;
         return false;
       }
     });
 
     // Extract description
-    let description = '';
+    let description = "";
     const textSelectors = [
-      '._5rgt._5g-5',
-      '._5rgt',
-      '._5pco',
-      '.userContent',
+      "._5rgt._5g-5",
+      "._5rgt",
+      "._5pco",
+      ".userContent",
       'div[role="article"] p',
       'div[data-testid="post_message"]',
-      '.fbUserContent'
+      ".fbUserContent",
     ];
 
     for (const selector of textSelectors) {
@@ -550,104 +788,113 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
     if (!description) {
       const paragraphs = [];
-      $('p').each((i, el) => {
+      $("p").each((i, el) => {
         const txt = $(el).text().trim();
         if (txt) paragraphs.push(txt);
       });
       if (paragraphs.length) {
-        description = paragraphs.join('\n');
+        description = paragraphs.join("\n");
       }
     }
 
     if (!description) {
-      description = $('body').text().replace(/\s+/g, ' ').trim();
+      description = $("body").text().replace(/\s+/g, " ").trim();
     }
 
     metadata.description = description;
-    if (description) {
-      metadata.title = description.substring(0, 60) + (description.length > 60 ? '...' : '');
-    }
-
+    // Removed: The title was being overwritten by the description, causing duplication.
+    // if (description) {
+    //   metadata.title =
+    //     description.substring(0, 60) + (description.length > 60 ? "..." : "");
+    // }
     // Extract image
     const isProfileImage = (imgEl) => {
-      const src = imgEl.attr('src') || '';
-      const alt = imgEl.attr('alt') || '';
-      const ariaLabel = imgEl.attr('aria-label') || '';
-      const className = imgEl.attr('class') || '';
-      
+      const src = imgEl.attr("src") || "";
+      const alt = imgEl.attr("alt") || "";
+      const ariaLabel = imgEl.attr("aria-label") || "";
+      const className = imgEl.attr("class") || "";
+
       if (
-        src.includes('/rsrc.php/') || 
-        src.includes('fbcdn-profile') || 
-        src.includes('profile.php') ||
-        src.includes('emoji.php') ||
-        src.includes('/images/emoji') ||
-        src.includes('/assets/') ||
-        src.includes('favicon')
+        src.includes("/rsrc.php/") ||
+        src.includes("fbcdn-profile") ||
+        src.includes("profile.php") ||
+        src.includes("emoji.php") ||
+        src.includes("/images/emoji") ||
+        src.includes("/assets/") ||
+        src.includes("favicon")
       ) {
         return true;
       }
-      
+
       if (
-        alt.toLowerCase().includes('profile') || 
-        alt.toLowerCase().includes('avatar') ||
-        ariaLabel.toLowerCase().includes('profile') ||
-        ariaLabel.toLowerCase().includes('avatar')
+        alt.toLowerCase().includes("profile") ||
+        alt.toLowerCase().includes("avatar") ||
+        ariaLabel.toLowerCase().includes("profile") ||
+        ariaLabel.toLowerCase().includes("avatar")
       ) {
         return true;
       }
-      
+
       if (
-        className.includes('_s0') || 
-        className.includes('_4ooo') || 
-        className.includes('_5xib') || 
-        className.includes('_tzw')
+        className.includes("_s0") ||
+        className.includes("_4ooo") ||
+        className.includes("_5xib") ||
+        className.includes("_tzw")
       ) {
         return true;
       }
-      
-      const parentAnchor = imgEl.closest('a');
+
+      const parentAnchor = imgEl.closest("a");
       if (parentAnchor.length) {
-        const tabIndex = parentAnchor.attr('tabindex');
-        const ariaHidden = parentAnchor.attr('aria-hidden');
-        const anchorClass = parentAnchor.attr('class') || '';
-        
-        if (tabIndex === '-1' || ariaHidden === 'true' || anchorClass.includes('_3rt8')) {
+        const tabIndex = parentAnchor.attr("tabindex");
+        const ariaHidden = parentAnchor.attr("aria-hidden");
+        const anchorClass = parentAnchor.attr("class") || "";
+
+        if (
+          tabIndex === "-1" ||
+          ariaHidden === "true" ||
+          anchorClass.includes("_3rt8")
+        ) {
           return true;
         }
       }
-      
+
       return false;
     };
 
-    let foundImage = '';
-    
+    let foundImage = "";
+
     // First, look for explicitly marked main post images in the iframe
     const mainImageSelectors = [
-      '._2l7q img',
-      'img.scaledImageFitWidth',
-      'img.scaledImageFitHeight',
-      'img._1p6f',
-      'img._1p6g'
+      "._2l7q img",
+      "img.scaledImageFitWidth",
+      "img.scaledImageFitHeight",
+      "img._1p6f",
+      "img._1p6g",
     ];
-    
+
     for (const selector of mainImageSelectors) {
       const img = $(selector).first();
       if (img.length) {
-        const src = img.attr('src');
+        const src = img.attr("src");
         if (src && !isProfileImage(img)) {
           foundImage = src;
           break;
         }
       }
     }
-    
+
     // If not found by selector, loop through all images and find the first non-profile image
     if (!foundImage) {
-      $('img').each((i, el) => {
+      $("img").each((i, el) => {
         const img = $(el);
-        const src = img.attr('src');
+        const src = img.attr("src");
         if (src && !isProfileImage(img)) {
-          if (src.includes('fbcdn') || src.includes('fbsbx') || src.startsWith('http')) {
+          if (
+            src.includes("fbcdn") ||
+            src.includes("fbsbx") ||
+            src.startsWith("http")
+          ) {
             foundImage = src;
             return false; // break
           }
@@ -655,15 +902,20 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       });
     }
 
-    metadata.image = foundImage;
+    metadata.image = cleanImageUrl(foundImage);
 
     // Video specific handling
-    if (type === 'video' || html.includes('hd_src') || html.includes('sd_src') || html.includes('videoUrl')) {
+    if (
+      type === "video" ||
+      html.includes("hd_src") ||
+      html.includes("sd_src") ||
+      html.includes("videoUrl")
+    ) {
       const hdSrcMatch = html.match(/"hd_src"\s*:\s*"([^"]+)"/);
       const sdSrcMatch = html.match(/"sd_src"\s*:\s*"([^"]+)"/);
       const videoUrlMatch = html.match(/"videoUrl"\s*:\s*"([^"]+)"/);
-      
-      let videoUrl = '';
+
+      let videoUrl = "";
       if (hdSrcMatch) {
         videoUrl = decodeJsonUnicode(hdSrcMatch[1]);
       } else if (sdSrcMatch) {
@@ -675,8 +927,10 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       if (videoUrl) {
         metadata.videoUrl = videoUrl;
       }
-      
-      const posterMatch = html.match(/"thumb_url"\s*:\s*"([^"]+)"/) || html.match(/"snapshot_src"\s*:\s*"([^"]+)"/);
+
+      const posterMatch =
+        html.match(/"thumb_url"\s*:\s*"([^"]+)"/) ||
+        html.match(/"snapshot_src"\s*:\s*"([^"]+)"/);
       if (posterMatch && !metadata.image) {
         metadata.image = decodeJsonUnicode(posterMatch[1]);
       }
@@ -684,15 +938,18 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
     return cleanFinalMetadata(metadata, type);
   } catch (error) {
-    console.error('[SCRAPER] Fallback iframe fetch failed:', error.message);
-    return cleanFinalMetadata({
-      title: 'Facebook Link',
-      description: 'Click to view post on Facebook.',
-      image: '',
-      videoUrl: '',
-      author: 'Facebook',
-      authorPic: ''
-    }, type);
+    console.error("[SCRAPER] Fallback iframe fetch failed:", error.message);
+    return cleanFinalMetadata(
+      {
+        title: "Facebook Link",
+        description: "Click to view post on Facebook.",
+        image: "",
+        videoUrl: "",
+        author: "Facebook",
+        authorPic: "",
+      },
+      type,
+    );
   }
 }
 
@@ -701,12 +958,14 @@ function decodeJsonUnicode(str) {
   try {
     return JSON.parse(`"${str}"`);
   } catch (e) {
-    return str.replace(/\\\//g, '/').replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => {
-      return String.fromCharCode(parseInt(grp, 16));
-    });
+    return str
+      .replace(/\\\//g, "/")
+      .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => {
+        return String.fromCharCode(parseInt(grp, 16));
+      });
   }
 }
 
 module.exports = {
-  scrapeFacebookMetadata
+  scrapeFacebookMetadata,
 };
