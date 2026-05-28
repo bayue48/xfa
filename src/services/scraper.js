@@ -210,30 +210,26 @@ function cleanFinalMetadata(meta, type) {
 function cleanImageUrl(url) {
   if (!url) return url;
 
-  let cleanedUrl = url.replace(/&width=\d+/, '');
+  let cleanedUrl = url;
+  // Remove specific, known-safe tracking/sizing parameters that Facebook adds to image URLs.
+  // These parameters can change frequently and may interfere with direct image embedding.
+  // This list may need to be updated as Facebook changes its URL structures.
+  cleanedUrl = cleanedUrl.replace(/&width=\d+/, '');
   cleanedUrl = cleanedUrl.replace(/&height=\d+/, '');
-  cleanedUrl = cleanedUrl.replace(/&oe=[0-9a-fA-F]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_ohc=[^&]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_cat=\d+/, '');
-  cleanedUrl = cleanedUrl.replace(/&ccb=\d-\d+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_sid=[0-9a-fA-F]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_ht=[^&]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_eui2=[^&]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&oh=[0-9a-fA-F_]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_gid=[^&]+/, '');
-  cleanedUrl = cleanedUrl.replace(/&_nc_ss=\d+/, '');
+  cleanedUrl = cleanedUrl.replace(/&oe=[0-9a-fA-F]+/, ''); // Example: &oe=HASH
+  cleanedUrl = cleanedUrl.replace(/&_nc_ohc=[^&]+/, ''); // Example: &_nc_ohc=HASH
+  cleanedUrl = cleanedUrl.replace(/&_nc_cat=\d+/, ''); // Example: &_nc_cat=105
+  cleanedUrl = cleanedUrl.replace(/&ccb=\d-\d+/, ''); // Example: &ccb=1-7
+  cleanedUrl = cleanedUrl.replace(/&_nc_sid=[0-9a-fA-F]+/, ''); // Example: &_nc_sid=HASH
+  cleanedUrl = cleanedUrl.replace(/&_nc_ht=[^&]+/, ''); // Example: &_nc_ht=scontent.fmlg11-1.fna
+  cleanedUrl = cleanedUrl.replace(/&_nc_eui2=[^&]+/, ''); // Example: &_nc_eui2=HASH
+  cleanedUrl = cleanedUrl.replace(/&oh=[0-9a-fA-F_]+/, ''); // Example: &oh=HASH
+  cleanedUrl = cleanedUrl.replace(/&_nc_gid=[^&]+/, ''); // Example: &_nc_gid=HASH
+  cleanedUrl = cleanedUrl.replace(/&_nc_ss=\d+/, ''); // Example: &_nc_ss=70289
+  // Specific to some image URLs: stp=dst-jpg_sXXXxXXX_ttX&
   cleanedUrl = cleanedUrl.replace(/\?stp=dst-jpg_s\d+x\d+_tt\d&/, '?');
 
-  cleanedUrl = cleanedUrl.replace(/\?.+$/, (match) => {
-    const params = new URLSearchParams(match);
-    const filteredParams = [];
-    for (const [key, value] of params.entries()) {
-      if (!/^(s|p|q|o|h|w|c|fit|dpr|f|url)$/i.test(key) && !/^\d+x\d+$/.test(value)) {
-        filteredParams.push(`${key}=${value}`);
-      }
-    }
-    return filteredParams.length > 0 ? `?${filteredParams.join('&')}` : '';
-  });
+
 
   if (cleanedUrl.endsWith('?')) {
     cleanedUrl = cleanedUrl.slice(0, -1);
@@ -533,11 +529,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
       let resolvedImage = cleanImageUrl(jsonMeta.image || image || "");
 
-      // Attempt to extract a higher resolution image from JSON data if available
-      const imageData = extractImageData(html);
-      if (imageData && imageData.url) {
-        resolvedImage = cleanImageUrl(imageData.url);
-      }
+
 
       const finalMeta = cleanFinalMetadata(
         {
@@ -680,25 +672,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     );
   }
 
-  // Helper function to extract image data from JSON
-  function extractImageData(jsonContent) {
-    try {
-      const data = JSON.parse(jsonContent);
-      // Look for images in the "attachment" field for posts
-      if (data.attachment && data.attachment.media && data.attachment.media.image) {
-        return data.attachment.media.image;
-      }
-      // Look for images in a more generic "image" field
-      if (data.image) {
-        return data.image;
-      }
-      // You may need to add more sophisticated logic here based on the structure of the JSON
-      // from different types of Facebook pages (e.g., photo albums, profiles, etc.)
-    } catch (e) {
-      // Not a valid JSON or expected structure not found
-    }
-    return null;
-  }
+
 
   // 3. Fallback to Facebook Embed Iframe Plugin (Fallback 2)
   try {
