@@ -58,6 +58,16 @@ function isGenericTitle(t) {
   );
 }
 
+function isMetadataGeneric(meta) {
+  const titleGeneric = isGenericTitle(meta.title);
+  const descGeneric = !meta.description || isGenericTitle(meta.description) || meta.description === 'Click to open on Facebook';
+  const noImage = !meta.image;
+  const noVideo = !meta.videoUrl;
+  const noAuthor = !meta.author || meta.author === 'Facebook User' || meta.author === 'Facebook';
+  
+  return titleGeneric && descGeneric && noImage && noVideo && noAuthor;
+}
+
 function cleanFinalMetadata(meta, type) {
   let title = meta.title || '';
   let description = meta.description || '';
@@ -318,7 +328,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
       const resolvedImage = jsonMeta.image || image || '';
 
-      return cleanFinalMetadata({
+      const finalMeta = cleanFinalMetadata({
         title: resolvedTitle,
         description: resolvedDescription,
         image: resolvedImage,
@@ -326,6 +336,11 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         author: author,
         authorPic: ''
       }, type);
+
+      if (isMetadataGeneric(finalMeta)) {
+        throw new Error('Browser-agent retrieved only generic login wall metadata');
+      }
+      return finalMeta;
     }
   } catch (error) {
     console.warn(`[SCRAPER] Browser-agent fetch failed: ${error.message}. Trying bot-agent fetch.`);
@@ -396,7 +411,7 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
       const resolvedImage = jsonMeta.image || image || '';
 
-      return cleanFinalMetadata({
+      const finalMeta = cleanFinalMetadata({
         title: resolvedTitle,
         description: resolvedDescription,
         image: resolvedImage,
@@ -404,6 +419,11 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
         author: author,
         authorPic: ''
       }, type);
+
+      if (isMetadataGeneric(finalMeta)) {
+        throw new Error('Bot-agent retrieved only generic login wall metadata');
+      }
+      return finalMeta;
     }
   } catch (error) {
     console.warn(`[SCRAPER] Bot-agent fetch failed: ${error.message}. Trying iframe fallback.`);
