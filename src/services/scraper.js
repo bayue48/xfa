@@ -244,9 +244,21 @@ function extractFromJson(html) {
   }
 
   // 4. Image
+  const photoImageRegex = /"photo_image"\s*:\s*\{\s*(?:[^{}]*?)"uri"\s*:\s*"([^"]+)"/i;
+  const preferredThumbnailRegex = /"preferred_thumbnail"\s*:\s*\{\s*(?:[^{}]*?)"uri"\s*:\s*"([^"]+)"/i;
+  const blurredImageRegex = /"blurred_image"\s*:\s*\{\s*(?:[^{}]*?)"uri"\s*:\s*"([^"]+)"/i;
   const imageRegex = /"image"\s*:\s*\{\s*(?:[^{}]*?)"uri"\s*:\s*"([^"]+)"/i;
+  const photoImageMatch = html.match(photoImageRegex);
+  const preferredThumbnailMatch = html.match(preferredThumbnailRegex);
+  const blurredImageMatch = html.match(blurredImageRegex);
   const imageMatch = html.match(imageRegex);
-  if (imageMatch) {
+  if (photoImageMatch) {
+    metadata.image = decodeJsonUnicode(photoImageMatch[1]);
+  } else if (preferredThumbnailMatch) {
+    metadata.image = decodeJsonUnicode(preferredThumbnailMatch[1]);
+  } else if (blurredImageMatch) {
+    metadata.image = decodeJsonUnicode(blurredImageMatch[1]);
+  } else if (imageMatch) {
     metadata.image = decodeJsonUnicode(imageMatch[1]);
   }
 
