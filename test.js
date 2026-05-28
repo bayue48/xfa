@@ -12,7 +12,8 @@ async function testUrlParser() {
     'https://www.facebook.com/reel/1792980358348996',
     'https://www.facebook.com/share/r/18EhyfvqST/',
     'https://www.facebook.com/photo/?fbid=1590598709737086&set=a.459067266223575',
-    'https://www.facebook.com/NASA/posts/pfbid021YhnWGbLoKnXkZ7MujC6rFTmYcnsUx9thDjHLvuQzgazGVtG4Vm26YVBCVvCKdWl'
+    'https://www.facebook.com/NASA/posts/pfbid021YhnWGbLoKnXkZ7MujC6rFTmYcnsUx9thDjHLvuQzgazGVtG4Vm26YVBCVvCKdWl',
+    'https://fb.watch/yG4QOQkYl6/'
   ];
 
   for (const url of testUrls) {
@@ -31,7 +32,8 @@ async function testScraper() {
   const testUrls = [
     { name: 'NASA Post', url: 'https://www.facebook.com/NASA/posts/pfbid021YhnWGbLoKnXkZ7MujC6rFTmYcnsUx9thDjHLvuQzgazGVtG4Vm26YVBCVvCKdWl' },
     { name: 'Watch Video', url: 'https://www.facebook.com/watch/?v=2017473752494380' },
-    { name: 'Share Reel', url: 'https://www.facebook.com/share/r/18EhyfvqST/' }
+    { name: 'Share Reel', url: 'https://www.facebook.com/share/r/18EhyfvqST/' },
+    { name: 'fb.watch Video', url: 'https://fb.watch/yG4QOQkYl6/' }
   ];
 
   for (const item of testUrls) {

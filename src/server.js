@@ -39,7 +39,13 @@ app.use(async (req, res, next) => {
   const isBot = BOT_UA_REGEX.test(userAgent) || req.query.bot === 'true'; // Allow override via ?bot=true for testing
 
   // Reconstruct the original Facebook URL from the request path and query
-  const originalFbUrl = `https://www.facebook.com${req.originalUrl}`;
+  let originalFbUrl;
+  if (req.path.startsWith('/fbwatch/')) {
+    const cleanPath = req.originalUrl.substring(8); // Remove '/fbwatch'
+    originalFbUrl = `https://fb.watch${cleanPath}`;
+  } else {
+    originalFbUrl = `https://www.facebook.com${req.originalUrl}`;
+  }
 
   // Parse and get embed config
   const embedInfo = getEmbedInfo(originalFbUrl);

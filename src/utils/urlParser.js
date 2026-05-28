@@ -19,8 +19,14 @@ function cleanFacebookUrl(urlStr) {
   try {
     const parsed = new URL(urlStr);
     
+    if (parsed.hostname === 'fb.watch' || parsed.hostname === 'www.fb.watch') {
+      parsed.hostname = 'fb.watch';
+      parsed.search = '';
+      return parsed.toString();
+    }
+
     // Replace mobile, touch, basic, web, etc. subdomains with www
-    if (parsed.hostname.endsWith('facebook.com') || parsed.hostname.endsWith('fb.watch')) {
+    if (parsed.hostname === 'facebook.com' || parsed.hostname.endsWith('.facebook.com')) {
       parsed.hostname = 'www.facebook.com';
     } else {
       return null;
@@ -61,6 +67,7 @@ function getEmbedInfo(url) {
 
   // Check if it's a video/reel
   if (
+    urlObj.hostname === 'fb.watch' ||
     path.includes('/videos/') ||
     path.includes('/watch') ||
     path.includes('/reel/') ||

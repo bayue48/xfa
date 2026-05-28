@@ -43,6 +43,128 @@ function extractAuthor(title) {
   return cleaned;
 }
 
+function isGenericTitle(t) {
+  if (!t) return true;
+  const lower = t.toLowerCase().trim();
+  return (
+    lower === 'facebook' ||
+    lower === 'facebook post' ||
+    lower === 'facebook video' ||
+    lower === 'facebook image' ||
+    lower === 'facebook picture' ||
+    lower === 'discover popular videos | facebook' ||
+    lower.includes('log into facebook') ||
+    lower.includes('log in to facebook')
+  );
+}
+
+function cleanFinalMetadata(meta, type) {
+  let title = meta.title || '';
+  let description = meta.description || '';
+  let author = meta.author || 'Facebook User';
+  let image = meta.image || '';
+  let videoUrl = meta.videoUrl || '';
+
+  // Clean Author
+  if (!author || isGenericTitle(author)) {
+    author = 'Facebook User';
+  }
+  
+  // Clean Title
+  title = title.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  
+  // If title has views and reactions, parse out the real title
+  if (title.includes('views') && title.includes('reactions') && title.includes('|')) {
+    const parts = title.split('|').map(p => p.trim());
+    if (parts.length > 1 && parts[1]) {
+      title = parts[1];
+    }
+  }
+
+  // Remove trailing author suffix from title, e.g. " | Facebook" or " | AuthorName"
+  if (title.includes('|')) {
+    const parts = title.split('|').map(p => p.trim());
+    if (parts.length > 1) {
+      const lastPart = parts[parts.length - 1].toLowerCase();
+      if (lastPart === 'facebook' || lastPart.includes('reels') || lastPart === author.toLowerCase()) {
+        parts.pop();
+        title = parts.join(' | ');
+      }
+    }
+  }
+
+  // If title is generic, fallback
+  if (isGenericTitle(title)) {
+    if (description && !isGenericTitle(description)) {
+      title = description;
+    } else {
+      title = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+    }
+  }
+
+  // Clean Description
+  description = description.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  if (isGenericTitle(description)) {
+    description = '';
+  }
+
+  // If description is empty, use title as a fallback (or some standard text)
+  if (!description) {
+    description = 'Click to open on Facebook';
+  }
+
+  // Ensure title and description length limit
+  if (title.length > 150) {
+    title = title.substring(0, 147) + '...';
+  }
+  if (description.length > 300) {
+    description = description.substring(0, 297) + '...';
+  }
+
+  return {
+    title,
+    description,
+    image,
+    videoUrl,
+    author,
+    authorPic: ''
+  };
+}
+
+function extractFromJson(html) {
+  const metadata = {};
+  
+  // 1. Author
+  const actorRegex = /"actors"\s*:\s*\[\s*\{\s*(?:[^{}]*?)"name"\s*:\s*"([^"]+)"/i;
+  const actorMatch = html.match(actorRegex);
+  if (actorMatch) {
+    metadata.author = decodeJsonUnicode(actorMatch[1]);
+  }
+
+  // 2. Message / Description
+  const messageRegex = /"message"\s*:\s*\{\s*(?:[^{}]*?)"text"\s*:\s*"([^"]+)"/i;
+  const messageMatch = html.match(messageRegex);
+  if (messageMatch) {
+    metadata.description = decodeJsonUnicode(messageMatch[1]);
+  }
+
+  // 3. SEO Title
+  const seoTitleRegex = /"seo_title"\s*:\s*"([^"]+)"/i;
+  const seoTitleMatch = html.match(seoTitleRegex);
+  if (seoTitleMatch) {
+    metadata.seoTitle = decodeJsonUnicode(seoTitleMatch[1]);
+  }
+
+  // 4. Image
+  const imageRegex = /"image"\s*:\s*\{\s*(?:[^{}]*?)"uri"\s*:\s*"([^"]+)"/i;
+  const imageMatch = html.match(imageRegex);
+  if (imageMatch) {
+    metadata.image = decodeJsonUnicode(imageMatch[1]);
+  }
+  
+  return metadata;
+}
+
 /**
  * Scrapes metadata from a Facebook post/video.
  * @param {string} canonicalUrl The direct Facebook post/video URL.
@@ -160,16 +282,50 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       }
     }
 
-    if (title || description) {
+    const jsonMeta = extractFromJson(html);
+
+    if (title || description || jsonMeta.description || jsonMeta.seoTitle || jsonMeta.author) {
       console.log(`[SCRAPER] Browser-agent fetch successful for: ${canonicalUrl}`);
-      return {
-        title: title || 'Facebook Video',
-        description: description || '',
-        image: image || '',
+      
+      let author = extractAuthor(title);
+      if ((!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'facebook user') && jsonMeta.author) {
+        author = jsonMeta.author;
+      } else if (jsonMeta.author && (!author || author.length > 40)) {
+        author = jsonMeta.author;
+      }
+
+      let resolvedDescription = jsonMeta.description || description || '';
+      if (!resolvedDescription || resolvedDescription.includes('Log into Facebook') || resolvedDescription.includes('Click to open on Facebook')) {
+        resolvedDescription = jsonMeta.seoTitle || '';
+      }
+
+      let resolvedTitle = title || '';
+      if (isGenericTitle(resolvedTitle)) {
+        if (jsonMeta.seoTitle) {
+          resolvedTitle = jsonMeta.seoTitle;
+        } else if (jsonMeta.description) {
+          resolvedTitle = jsonMeta.description;
+        } else if (author && !isGenericTitle(author)) {
+          resolvedTitle = type === 'video' ? `${author}'s Video` : `${author}'s Post`;
+        } else {
+          resolvedTitle = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+        }
+      }
+
+      if (resolvedTitle && resolvedTitle.length > 150) {
+        resolvedTitle = resolvedTitle.substring(0, 147) + '...';
+      }
+
+      const resolvedImage = jsonMeta.image || image || '';
+
+      return cleanFinalMetadata({
+        title: resolvedTitle,
+        description: resolvedDescription,
+        image: resolvedImage,
         videoUrl: videoUrl,
-        author: extractAuthor(title),
+        author: author,
         authorPic: ''
-      };
+      }, type);
     }
   } catch (error) {
     console.warn(`[SCRAPER] Browser-agent fetch failed: ${error.message}. Trying bot-agent fetch.`);
@@ -204,16 +360,50 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const image = meta['og:image'] || meta['twitter:image'];
     const videoUrl = meta['og:video'] || meta['og:video:url'] || meta['og:video:secure_url'] || '';
 
-    if (title || description) {
+    const jsonMeta = extractFromJson(html);
+
+    if (title || description || jsonMeta.description || jsonMeta.seoTitle || jsonMeta.author) {
       console.log(`[SCRAPER] Bot-agent direct fetch successful for: ${canonicalUrl}`);
-      return {
-        title: title || 'Facebook Post',
-        description: description || '',
-        image: image || '',
+      
+      let author = extractAuthor(title);
+      if ((!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'facebook user') && jsonMeta.author) {
+        author = jsonMeta.author;
+      } else if (jsonMeta.author && (!author || author.length > 40)) {
+        author = jsonMeta.author;
+      }
+
+      let resolvedDescription = jsonMeta.description || description || '';
+      if (!resolvedDescription || resolvedDescription.includes('Log into Facebook') || resolvedDescription.includes('Click to open on Facebook')) {
+        resolvedDescription = jsonMeta.seoTitle || '';
+      }
+
+      let resolvedTitle = title || '';
+      if (isGenericTitle(resolvedTitle)) {
+        if (jsonMeta.seoTitle) {
+          resolvedTitle = jsonMeta.seoTitle;
+        } else if (jsonMeta.description) {
+          resolvedTitle = jsonMeta.description;
+        } else if (author && !isGenericTitle(author)) {
+          resolvedTitle = type === 'video' ? `${author}'s Video` : `${author}'s Post`;
+        } else {
+          resolvedTitle = type === 'video' ? 'Facebook Video' : 'Facebook Post';
+        }
+      }
+
+      if (resolvedTitle && resolvedTitle.length > 150) {
+        resolvedTitle = resolvedTitle.substring(0, 147) + '...';
+      }
+
+      const resolvedImage = jsonMeta.image || image || '';
+
+      return cleanFinalMetadata({
+        title: resolvedTitle,
+        description: resolvedDescription,
+        image: resolvedImage,
         videoUrl: videoUrl,
-        author: extractAuthor(title),
+        author: author,
         authorPic: ''
-      };
+      }, type);
     }
   } catch (error) {
     console.warn(`[SCRAPER] Bot-agent fetch failed: ${error.message}. Trying iframe fallback.`);
@@ -360,17 +550,17 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
       }
     }
 
-    return metadata;
+    return cleanFinalMetadata(metadata, type);
   } catch (error) {
     console.error('[SCRAPER] Fallback iframe fetch failed:', error.message);
-    return {
+    return cleanFinalMetadata({
       title: 'Facebook Link',
       description: 'Click to view post on Facebook.',
       image: '',
       videoUrl: '',
       author: 'Facebook',
       authorPic: ''
-    };
+    }, type);
   }
 }
 

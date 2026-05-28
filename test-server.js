@@ -52,6 +52,32 @@ async function run() {
     console.log(`Status Code: ${oembedRes.status}`);
     console.log('Response JSON:', oembedRes.data);
 
+    // 4. Test fb.watch with normal browser (should redirect to fb.watch)
+    console.log('\n--- 4. Testing fb.watch normal browser request ---');
+    try {
+      await axios.get('http://localhost:4567/fbwatch/yG4QOQkYl6', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        maxRedirects: 0
+      });
+    } catch (err) {
+      if (err.response) {
+        console.log(`Status Code: ${err.response.status}`);
+        console.log(`Redirect Location: ${err.response.headers.location}`);
+      } else {
+        console.error('Request failed:', err.message);
+      }
+    }
+
+    // 5. Test fb.watch with Discordbot (should follow redirect & extract details)
+    console.log('\n--- 5. Testing fb.watch Discordbot request ---');
+    const fbwatchRes = await axios.get('http://localhost:4567/fbwatch/yG4QOQkYl6', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)' }
+    });
+    console.log(`Status Code: ${fbwatchRes.status}`);
+    console.log(`Content-Type: ${fbwatchRes.headers['content-type']}`);
+    console.log('\nHTML Output Snippet (first 1200 chars):');
+    console.log(fbwatchRes.data.substring(0, 1200));
+
   } catch (err) {
     console.error('Test execution failed:', err);
   } finally {
