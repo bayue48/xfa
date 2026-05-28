@@ -26,7 +26,10 @@ app.get('/oembed', (req, res) => {
 });
 
 // Middleware to catch all incoming Facebook path requests
-app.get('(.*)', async (req, res) => {
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET') {
+    return next();
+  }
   // Ignore static assets or favicon requests
   if (req.path === '/favicon.ico' || req.path === '/robots.txt') {
     return res.status(404).send('Not Found');
