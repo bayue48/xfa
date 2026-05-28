@@ -211,34 +211,11 @@ function cleanImageUrl(url) {
   if (!url) return url;
 
   let cleanedUrl = url;
-  // Remove specific, known-safe tracking/sizing parameters that Facebook adds to image URLs.
-  // These parameters can change frequently and may interfere with direct image embedding.
-  // This list may need to be updated as Facebook changes its URL structures.
-  cleanedUrl = cleanedUrl.replace(/&width=\d+/, '');
-  cleanedUrl = cleanedUrl.replace(/&height=\d+/, '');
-  cleanedUrl = cleanedUrl.replace(/&oe=[0-9a-fA-F]+/, ''); // Example: &oe=HASH
-  cleanedUrl = cleanedUrl.replace(/&_nc_ohc=[^&]+/, ''); // Example: &_nc_ohc=HASH
-  cleanedUrl = cleanedUrl.replace(/&_nc_cat=\d+/, ''); // Example: &_nc_cat=105
-  cleanedUrl = cleanedUrl.replace(/&ccb=\d-\d+/, ''); // Example: &ccb=1-7
-  cleanedUrl = cleanedUrl.replace(/&_nc_sid=[0-9a-fA-F]+/, ''); // Example: &_nc_sid=HASH
-  cleanedUrl = cleanedUrl.replace(/&_nc_ht=[^&]+/, ''); // Example: &_nc_ht=scontent.fmlg11-1.fna
-  cleanedUrl = cleanedUrl.replace(/&_nc_eui2=[^&]+/, ''); // Example: &_nc_eui2=HASH
-  cleanedUrl = cleanedUrl.replace(/&oh=[0-9a-fA-F_]+/, ''); // Example: &oh=HASH
-  cleanedUrl = cleanedUrl.replace(/&_nc_gid=[^&]+/, ''); // Example: &_nc_gid=HASH
-  cleanedUrl = cleanedUrl.replace(/&_nc_ss=\d+/, ''); // Example: &_nc_ss=70289
-  // Specific to some image URLs: stp=dst-jpg_sXXXxXXX_ttX&
-  cleanedUrl = cleanedUrl.replace(/\?stp=dst-jpg_s\d+x\d+_tt\d&/, '?');
-
-
-
-  if (cleanedUrl.endsWith('?')) {
-    cleanedUrl = cleanedUrl.slice(0, -1);
-  }
-
   console.log(`[SCRAPER] Cleaned image URL: ${cleanedUrl}`);
 
   return cleanedUrl;
 }
+
 
 function extractFromJson(html) {
   const metadata = {};

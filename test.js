@@ -57,6 +57,26 @@ async function testScraper() {
     {
       name: "Failing Photo URL from Screenshot 1",
       url: "https://www.facebook.com/photo/?fbid=1286028850346136&set=gm.1298622039097247"
+    },
+    {
+      name: "New URL 1",
+      url: "https://www.facebook.com/share/p/1AZPvapTW7/"
+    },
+    {
+      name: "New URL 2",
+      url: "https://www.facebook.com/groups/4021832254535027/posts/27380089204949336/"
+    },
+    {
+      name: "New URL 3",
+      url: "https://www.facebook.com/share/p/1D1K1G5h13/"
+    },
+    {
+      name: "New URL 4",
+      url: "https://www.facebook.com/photo/?fbid=1630642614714346&set=gm.27380089204949336"
+    },
+    {
+      name: "New URL 5",
+      url: "https://www.facebook.com/share/p/1CUoZ7mScW/"
     }
   ];
 
