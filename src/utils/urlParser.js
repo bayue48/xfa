@@ -63,7 +63,9 @@ function getEmbedInfo(url) {
   if (
     path.includes('/videos/') ||
     path.includes('/watch') ||
-    path.startsWith('/reel/') ||
+    path.includes('/reel/') ||
+    path.includes('/share/v/') ||
+    path.includes('/share/r/') ||
     urlObj.searchParams.has('v')
   ) {
     type = 'video';

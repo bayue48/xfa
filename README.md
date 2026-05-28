@@ -1,115 +1,82 @@
-# xfa (Facebook Scraper & Embedder for Discord)
+# xfa: Facebook Embed Scraper for Discord
 
-`xfa` is a Node.js-based web server designed to fix Facebook link previews on Discord, Telegram, Slack, and other platforms, similar to how `fixupx.com` / `fxtwitter.com` works for X/Twitter.
+`xfa` (similar to `fixupx.com` or `fxtwitter.com`) is a self-hostable Node.js web server that intercepts requests for Facebook posts, videos, reels, and photos, and returns a Discord-optimized HTML page with rich OpenGraph and oEmbed metadata. 
 
-When a Facebook link is shared directly on Discord, it often fails to display an embed, shows generic metadata, or misses images/videos. By replacing the `facebook.com` domain with your hosted `xfa` domain, you get fully populated rich embeds containing the post title, description, images, and author metadata.
-
----
-
-## How It Works
-
-1. **User shares a modified link** on Discord, e.g., `https://xfa.gsdm.site/share/p/14gpmAHmpvn/` instead of `https://facebook.com/share/p/14gpmAHmpvn/`.
-2. **Discord's crawler bot** (identified by its User-Agent) requests the link from your `xfa` server.
-3. **The `xfa` server** fetches the post page from Facebook using a bot User-Agent (which bypasses Facebook's login walls/heavy JS and returns raw server-rendered meta tags). If that fails, it falls back to parsing Facebook's Embedded Iframe Plugin.
-4. **The server returns a custom HTML page** containing OpenGraph, Twitter Player Card, and oEmbed metadata tags designed for Discord's embeds.
-5. **Discord displays the rich preview card** (complete with Title, Author Name, Post Content/Description, Images, or Video Player).
-6. **When a human user clicks the link**, the server detects a normal browser User-Agent and redirects them instantly (HTTP 302 / Javascript fallback) to the original Facebook post URL.
+When a user posts a Facebook link in Discord (e.g., `https://xfa-facebook.com/share/r/18EhyfvqST/`), Discord's crawler requests the page. `xfa` scrapes the post details, retrieves direct video streams (`.mp4` CDN URLs) and high-quality preview images, and formats them so Discord can embed the video and image directly in the chat window.
 
 ---
 
-## Project Structure
+## Features
 
-- `src/server.js`: The main Express server. Handles routing, User-Agent detection, oEmbed generation, and redirects.
-- `src/services/scraper.js`: Scrapes Facebook metadata using two strategies (direct bot UA requests, falling back to iframe plugins).
-- `src/utils/urlParser.js`: Parses and reconstructs different Facebook link types (posts, watch/videos, reels, group posts, photos, share links).
-- `test.js`: Performs local parsing and scraping validation tests.
+- **Direct Video Embeds**: Scrapes direct Facebook CDN `.mp4` URLs to play reels and videos inline on Discord.
+- **Rich Media Previews**: Extracts high-quality post images, descriptions, and authors.
+- **Smart User-Agent Routing**: 
+  - **Discord/Telegram/Slack/etc. Bots**: Served with customized HTML containing OpenGraph metadata and oEmbed tags.
+  - **Normal Users (Browsers)**: Redirected instantly (via HTTP 302 and Javascript backup) to the original Facebook link.
+- **oEmbed Integration**: Custom endpoint to display the original publisher/author's name and profile link at the top of the Discord embed.
+- **Robust Scraper Fallbacks**:
+  1. **Direct Browser emulation** (Highest quality, yields direct video CDN links).
+  2. **Direct Bot fallback** (Extracts standard meta tags).
+  3. **Iframe Plugin parsing** (Resilient fallback utilizing Facebook's official widgets).
 
 ---
 
-## Local Setup & Testing
+## Getting Started
 
-### 1. Install Dependencies
-```bash
-npm install
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v16 or higher)
+- npm or pnpm
+
+### Installation
+
+1. Clone or copy this repository to your hosting environment.
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+
+### Configuration
+
+You can configure the server port by creating a `.env` file in the root directory (optional, defaults to port `3000`):
+
+```env
+PORT=3000
 ```
 
-### 2. Run Tests
-To test parsing and live scraping functionality locally:
-```bash
-npm test
-```
+### Running the Server
 
-### 3. Start Server Locally
+Start the production server:
 ```bash
 npm start
 ```
-The server will run on port `3000` (or the port defined in your `.env` file).
 
-To test how it looks to a bot locally, append `?bot=true` to any path, e.g., `http://localhost:3000/share/p/14gpmAHmpvn/?bot=true`.
+Or run in development mode:
+```bash
+npm run dev
+```
 
 ---
 
-## How to Deploy
+## Testing
 
-To use this on Discord, the server must be hosted on a public URL. You can deploy it to any cloud provider:
+To run the URL parser and metadata scraper tests:
+```bash
+node test.js
+```
 
-### Option A: Railway / Render (Easiest)
-1. Push this repository to GitHub.
-2. Sign up on [Railway.app](https://railway.app) or [Render.com](https://render.com).
-3. Connect your GitHub repository.
-4. Deploy as a Node.js web service.
-5. Copy your service's public domain (e.g. `your-app.up.railway.app` or `your-app.onrender.com`).
-
-### Option B: VPS (Virtual Private Server)
-1. Clone the repository to your VPS.
-2. Run `npm install`.
-3. Use a process manager like `pm2` to run the app in the background:
-   ```bash
-   npm install -g pm2
-   pm2 start src/server.js --name "xfa-embed"
-   ```
-4. Set up Nginx or Caddy as a reverse proxy pointing to port `3000` with SSL enabled.
-
-### Option C: Docker (Production)
-We provide a production-ready `Dockerfile` and `.dockerignore`.
-
-1. **Build the Docker Image**:
-   ```bash
-   docker build -t xfa-embed:latest .
-   ```
-
-2. **Run the Container**:
-   Run the container in detached mode (background) and map port `3000` of the host to port `3000` of the container:
-   ```bash
-   docker run -d --name xfa-embed-prod -p 3000:3000 --restart unless-stopped xfa-embed:latest
-   ```
-
-3. **Production Considerations**:
-   - Set the `PORT` environment variable if needed by passing `-e PORT=YOUR_PORT`.
-   - Set up a reverse proxy (like Nginx, Caddy, or Traefik) on your host to point to port `3000` and handle HTTPS/SSL. Discord requires links to use `https://` for embeds to render correctly.
+To run the Express server integration tests:
+```bash
+node test-server.js
+```
 
 ---
 
 ## How to Use on Discord
 
-Once your server is deployed to a public domain (e.g. `xfa.gsdm.site`):
-
-1. **Copy** the original Facebook URL you want to share.
-2. **Replace** `facebook.com` (or `fb.watch`) with your domain name.
-
-### Examples:
-- **Standard Post**:
-  - Original: `https://www.facebook.com/NASA/posts/pfbid021YhnWGbLoKnXkZ7MujC6rFTmYcnsUx9thDjHLvuQzgazGVtG4Vm26YVBCVvCKdWl`
-  - Share on Discord: `https://xfa.gsdm.site/NASA/posts/pfbid021YhnWGbLoKnXkZ7MujC6rFTmYcnsUx9thDjHLvuQzgazGVtG4Vm26YVBCVvCKdWl`
-
-- **Short Share Link**:
-  - Original: `https://www.facebook.com/share/p/14gpmAHmpvn/`
-  - Share on Discord: `https://xfa.gsdm.site/share/p/14gpmAHmpvn/`
-
-- **Watch Video**:
-  - Original: `https://www.facebook.com/watch/?v=2017473752494380`
-  - Share on Discord: `https://xfa.gsdm.site/watch/?v=2017473752494380`
-
-- **Reel**:
-  - Original: `https://www.facebook.com/share/r/18EhyfvqST/`
-  - Share on Discord: `https://xfa.gsdm.site/share/r/18EhyfvqST/`
+1. Host this server on a public domain (e.g., using Fly.io, Railway, Render, or a VPS with Nginx and PM2). Make sure SSL (HTTPS) is enabled, as Discord requires HTTPS for player embeds.
+2. When sharing a Facebook link, replace the hostname `facebook.com` (or `www.facebook.com`, `m.facebook.com`, etc.) with your custom domain (e.g., `xfa-fb.com` or `yourdomain.com`).
+3. **Example**:
+   - Original link: `https://www.facebook.com/share/r/18EhyfvqST/`
+   - Modified link: `https://yourdomain.com/share/r/18EhyfvqST/`
+4. Discord will fetch the link, parse the OpenGraph/oEmbed tags returned by your server, and show a beautiful inline video player. Normal users who click the link in Discord will be seamlessly redirected back to the official Facebook post.

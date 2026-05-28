@@ -51,9 +51,75 @@ function extractAuthor(title) {
  * @returns {Promise<{title?: string, description?: string, image?: string, videoUrl?: string, author?: string, authorPic?: string}>}
  */
 async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
-  // 1. Try direct scraping with Discordbot User-Agent
+  // 1. Try scraping with BROWSER_USER_AGENT (Chrome) first, as it yields high-quality metadata and video stream links.
   try {
-    console.log(`[SCRAPER] Attempting direct fetch from: ${canonicalUrl}`);
+    console.log(`[SCRAPER] Attempting browser-agent fetch from: ${canonicalUrl}`);
+    const response = await axios.get(canonicalUrl, {
+      headers: {
+        'User-Agent': BROWSER_USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
+      },
+      timeout: 8000,
+      maxRedirects: 5,
+    });
+
+    const html = response.data;
+    const $ = cheerio.load(html);
+
+    const meta = {};
+    $('meta').each((i, el) => {
+      const nameAttr = $(el).attr('name') || $(el).attr('property');
+      const content = $(el).attr('content');
+      if (nameAttr && content) {
+        meta[nameAttr] = content;
+      }
+    });
+
+    const title = meta['og:title'] || meta['twitter:title'] || $('title').text();
+    const description = meta['og:description'] || meta['twitter:description'] || meta['description'];
+    const image = meta['og:image'] || meta['twitter:image'];
+    
+    let videoUrl = '';
+    // If this is a video or reel, search for playable CDN links
+    if (type === 'video' || html.includes('fbcdn.net')) {
+      const regex = /https?:(?:\\\/\\\/|)[^\s"']+?video[^\s"']+?fbcdn\.net[^\s"']+/gi;
+      const matches = html.match(regex) || [];
+      const unique = [...new Set(matches)].map(m => m.replace(/\\/g, ''));
+      const foundVideo = unique.find(u => u.includes('/v/') || u.includes('/m366/') || u.includes('/m412/') || u.includes('.mp4') || u.includes('video.f'));
+      if (foundVideo) {
+        // Truncate at XML/HTML tags (like \u003c / u003c / <)
+        let cleanUrl = foundVideo.split(/\\u003c|u003c|\\u003C|u003C|<|\\u003e|u003e|\\u003E|u003E|>/)[0];
+        // Replace & with & for standard clean URLs
+        cleanUrl = cleanUrl.replace(/&amp;/g, '&');
+        videoUrl = cleanUrl;
+        console.log(`[SCRAPER] Extracted direct video URL from browser response: ${videoUrl.substring(0, 80)}...`);
+      }
+    }
+
+    if (title || description) {
+      console.log(`[SCRAPER] Browser-agent fetch successful for: ${canonicalUrl}`);
+      return {
+        title: title || 'Facebook Video',
+        description: description || '',
+        image: image || '',
+        videoUrl: videoUrl,
+        author: extractAuthor(title),
+        authorPic: ''
+      };
+    }
+  } catch (error) {
+    console.warn(`[SCRAPER] Browser-agent fetch failed: ${error.message}. Trying bot-agent fetch.`);
+  }
+
+  // 2. Try direct scraping with Discordbot User-Agent (Fallback 1)
+  try {
+    console.log(`[SCRAPER] Attempting bot-agent direct fetch from: ${canonicalUrl}`);
     const response = await axios.get(canonicalUrl, {
       headers: {
         'User-Agent': BOT_USER_AGENT,
@@ -78,24 +144,24 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
     const title = meta['og:title'] || meta['twitter:title'] || $('title').text();
     const description = meta['og:description'] || meta['twitter:description'] || meta['description'];
     const image = meta['og:image'] || meta['twitter:image'];
-    const videoUrl = meta['og:video'] || meta['og:video:url'] || meta['og:video:secure_url'];
+    const videoUrl = meta['og:video'] || meta['og:video:url'] || meta['og:video:secure_url'] || '';
 
     if (title || description) {
-      console.log(`[SCRAPER] Direct fetch successful for: ${canonicalUrl}`);
+      console.log(`[SCRAPER] Bot-agent direct fetch successful for: ${canonicalUrl}`);
       return {
         title: title || 'Facebook Post',
         description: description || '',
         image: image || '',
-        videoUrl: videoUrl || '',
+        videoUrl: videoUrl,
         author: extractAuthor(title),
-        authorPic: '' // Direct bot request doesn't have an easy selector for profile pics
+        authorPic: ''
       };
     }
   } catch (error) {
-    console.warn(`[SCRAPER] Direct fetch failed: ${error.message}. Falling back to iframe scraper.`);
+    console.warn(`[SCRAPER] Bot-agent fetch failed: ${error.message}. Trying iframe fallback.`);
   }
 
-  // 2. Fallback to Facebook Embed Iframe Plugin
+  // 3. Fallback to Facebook Embed Iframe Plugin (Fallback 2)
   try {
     console.log(`[SCRAPER] Attempting fallback iframe fetch: ${embedUrl}`);
     const response = await axios.get(embedUrl, {
