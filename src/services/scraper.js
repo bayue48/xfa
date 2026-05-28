@@ -162,7 +162,9 @@ function cleanFinalMetadata(meta, type) {
 
   // If title is generic, fallback
   if (isGenericTitle(title)) {
-    if (description && !isGenericTitle(description)) {
+    if (type !== "video" && author && !isGenericTitle(author)) {
+      title = author;
+    } else if (description && !isGenericTitle(description)) {
       title = description;
     } else {
       title = type === "video" ? "Facebook Video" : "Facebook Post";
@@ -500,7 +502,9 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
 
       let resolvedTitle = title || "";
       if (isGenericTitle(resolvedTitle)) {
-        if (jsonMeta.seoTitle) {
+        if (type !== "video" && author && !isGenericTitle(author)) {
+          resolvedTitle = author;
+        } else if (jsonMeta.seoTitle) {
           resolvedTitle = jsonMeta.seoTitle;
         } else if (jsonMeta.description) {
           resolvedTitle = jsonMeta.description;
