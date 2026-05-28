@@ -46,22 +46,62 @@ function extractAuthor(title) {
 function isGenericTitle(t) {
   if (!t) return true;
   const lower = t.toLowerCase().trim();
+  
+  const genericSubstrings = [
+    'log into facebook',
+    'log in to facebook',
+    'login to facebook',
+    'log in or sign up',
+    'login or sign up',
+    'create an account',
+    'welcome to facebook',
+    'security check',
+    'security check required',
+    'page not found',
+    'content not found',
+    'popular videos'
+  ];
+
+  if (genericSubstrings.some(p => lower.includes(p))) {
+    return true;
+  }
+
+  const genericExacts = [
+    'facebook',
+    'facebook post',
+    'facebook video',
+    'facebook image',
+    'facebook picture',
+    'facebook link',
+    'facebook user',
+    'facebook | error',
+    'error | facebook',
+    'error facebook'
+  ];
+
+  if (genericExacts.some(p => lower === p)) {
+    return true;
+  }
+
+  return false;
+}
+
+function isGenericImage(url) {
+  if (!url) return true;
+  const lower = url.toLowerCase();
   return (
-    lower === 'facebook' ||
-    lower === 'facebook post' ||
-    lower === 'facebook video' ||
-    lower === 'facebook image' ||
-    lower === 'facebook picture' ||
-    lower === 'discover popular videos | facebook' ||
-    lower.includes('log into facebook') ||
-    lower.includes('log in to facebook')
+    lower.includes('fb_icon_325x325') ||
+    lower.includes('/images/fb_icon') ||
+    lower.includes('static.xx.fbcdn.net/rsrc.php') ||
+    lower.includes('facebook_logo') ||
+    (lower.includes('fbcdn.net') && lower.includes('logo'))
   );
 }
 
 function isMetadataGeneric(meta) {
   const titleGeneric = isGenericTitle(meta.title);
   const descGeneric = !meta.description || isGenericTitle(meta.description) || meta.description === 'Click to open on Facebook';
-  const noImage = !meta.image;
+  const noImage = !meta.image || isGenericImage(meta.image);
   const noVideo = !meta.videoUrl;
   const noAuthor = !meta.author || meta.author === 'Facebook User' || meta.author === 'Facebook';
   
