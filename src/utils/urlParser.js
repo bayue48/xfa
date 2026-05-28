@@ -34,6 +34,20 @@ function cleanFacebookUrl(urlStr) {
 
     // Clean tracking query parameters
     const params = new URLSearchParams(parsed.search);
+
+    // If it's a group link with multi_permalinks, rewrite it to the canonical group post format
+    if (parsed.pathname.includes('/groups/')) {
+      const multiPermalinks = params.get('multi_permalinks');
+      if (multiPermalinks) {
+        const match = parsed.pathname.match(/\/groups\/([^/]+)/);
+        if (match) {
+          const groupId = match[1];
+          parsed.pathname = `/groups/${groupId}/posts/${multiPermalinks}/`;
+          params.delete('multi_permalinks');
+        }
+      }
+    }
+
     const cleanedParams = new URLSearchParams();
     
     // Retain only necessary query parameters for specific pages

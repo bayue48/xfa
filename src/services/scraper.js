@@ -432,13 +432,26 @@ async function scrapeFacebookMetadata(canonicalUrl, embedUrl, type) {
   // 3. Fallback to Facebook Embed Iframe Plugin (Fallback 2)
   try {
     console.log(`[SCRAPER] Attempting fallback iframe fetch: ${embedUrl}`);
-    const response = await axios.get(embedUrl, {
-      headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      timeout: 8000
-    });
+    let response;
+    try {
+      // Try fetching with BOT_USER_AGENT first as it bypasses the 400 Bad Request issue on many server IPs.
+      response = await axios.get(embedUrl, {
+        headers: {
+          'User-Agent': BOT_USER_AGENT,
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        timeout: 8000
+      });
+    } catch (botErr) {
+      console.warn(`[SCRAPER] Bot-agent iframe fetch failed: ${botErr.message}. Retrying with browser-agent...`);
+      response = await axios.get(embedUrl, {
+        headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        timeout: 8000
+      });
+    }
 
     const html = response.data;
     const $ = cheerio.load(html);
